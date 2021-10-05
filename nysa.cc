@@ -17,6 +17,8 @@
 #include <vector>
 #include <set>
 #include <stack>
+#include <regex>
+#include <sstream>
 
 using namespace std;
 
@@ -52,16 +54,68 @@ set<signal_t> inputs;
 // zbiór sygnałów wyjściowych
 unordered_set<signal_t> outputs;
 
+// sprawdza poprawność składniową linii
+// todo: czy numery sygnałów mieszczą się w zakresie
+// to moze byc 1 pattern ale nie wiem czy jest czytelniej
+bool isValidGate(string s) {
+    regex notGate ("\\s*NOT(\\s+\\d+){2}\\s*");
+    regex xorGate ("\\s*XOR(\\s+\\d+){3}\\s*");
+    regex otherGate ("\\s*(AND|NAND|OR|NOR)(\\s+\\d+){3,}\\s*");
+
+    return regex_match(s, notGate)
+        || regex_match(s, xorGate)
+        || regex_match(s, otherGate);
+}
+
 //todo:
-// wczytując bramkę np. "AND 5 3 1"
-// sprawdzasz czy wyjście nie ma zwarcia (czy nie ma go na secie outputs)
-// wrzucasz wyjście na set
-// wrzucasz bramkę na wektor gates
-// każdego sygnału wejściowego dorzucasz indeks tej bramki do mapy doJakichBramekIdzieSyngal
-// jak będzie błąd na wejściu to wychodzisz exit(0) więc funkcja może być voidem
 // trzeba zmienić nazwę na coś po angielsku
 void wczytaj() {
+    size_t lineIdx = 1; // linie indeksowane od 1 jak w treści
+    int gateIdx = 0;
+    string line;
+    string gateType;
+    signal_t outputSignal;
 
+    bool invalidGates = false;
+
+    while (getline(cin, line)) {
+        lineIdx++;
+
+        if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
+            cerr << "Error in line " << lineIdx << ": " << line;
+            invalidGates = true;
+        } else {
+            stringstream ss(line);
+            ss >> gateType >> outputSignal;
+
+            if (outputs.contains(outputSignal)) {   // sprawdzam czy jest zwarcie
+                cerr << "Error in line " << lineIdx << ": signal " <<
+                    outputSignal << " is assigned to multiple outputs.";
+                invalidGates = true;
+            } else {
+                outputs.insert(outputSignal);   // wyjście dodane do setu
+            }
+
+            vector<signal_t> inputSignals ((istream_iterator<signal_t>(ss)),
+                    istream_iterator<signal_t>());  // numery sygnałów wejściowych
+
+            // nowa bramka dodana do wektora gates
+            gates.push_back({GateTypes::AND, outputSignal, inputSignals}); //todo: mapowanie na enuma
+            gateIdx++;
+
+            for (signal_t sig : inputSignals) {
+                if (!doJakichBramekIdzieSyngal.contains(sig)) {
+                    doJakichBramekIdzieSyngal.insert({sig, vector<int>{gateIdx}});
+                } else {
+                    doJakichBramekIdzieSyngal.at(sig).push_back(gateIdx);
+                }
+            }
+        }
+    }
+
+    if (invalidGates) {
+        exit(0);
+    }
 }
 
 // todo: czy ta nazwa jest dobra?
