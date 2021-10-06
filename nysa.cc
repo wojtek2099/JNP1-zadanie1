@@ -9,6 +9,8 @@
 // bramek jest co najwyżej tyle co sygnałów bo każda musi mieć osobne wyjście
 // układ bramek towrzy DAG (directed acyclic graph)
 // ****************************************
+// todo: dodać const tam gdzie trzeba
+// ****************************************
 
 #include <iostream>
 #include <map>
@@ -20,6 +22,14 @@
 #include <regex>
 #include <sstream>
 
+#define DEBUG(x)        \
+    do {                \
+        x               \
+        cout.flush();   \
+    } while (0)
+
+#define DEBUG(x)
+
 using namespace std;
 
 // klasa reprezentująca typy bramek logicznych
@@ -27,10 +37,11 @@ enum class GateTypes {
     NOT, OR, NOR, AND, NAND, XOR
 };
 
-// todo: Gate jest z dużej a signal_t z małej -> chyba trzeba się zdecydować na jedną wersję
-//  czy zdefiniować też typ dla bramek? (using gate_t = signal_t;)
-using signal_t = uint32_t; // sygnały mają nr od 1 do 999999999 więc potrzeba conajmniej 32 bitowego typu
-using Gate = tuple<GateTypes, signal_t, vector<signal_t>>; // <TYP, wyjście, wejścia>
+// sygnały mają nr od 1 do 999999999 więc potrzeba conajmniej 32 bitowego typu
+using signal_t = uint32_t;
+using gate_index_t = size_t;
+// <TYP, wyjście, wejścia>
+using gate_t = tuple<GateTypes, signal_t, vector<signal_t>>;
 
 // przechowuje stan sygnałów w danej chwili
 // potrzebna jest mapa, bo na kóncu wypisujemy posortowane
@@ -38,15 +49,14 @@ map<signal_t, bool> signalStates;
 
 // wektor przechowujący wszystkie bramki
 // bramki indeksujemy od 0
-vector<Gate> gates;
+vector<gate_t> gates;
 
 // bramki posortowane topologicznie
-vector<int> topologicalOrder;
+vector<gate_index_t> topologicalOrder;
 
 // dla każdego sygnału musimy pamiętać do jakich bramek wchodzi
 // na wektorze trzymamy indeks bramki
-// todo: trzeba to jakoś sensownie nazwać
-unordered_map<signal_t, vector<int>> doJakichBramekIdzieSyngal;
+unordered_map<signal_t, vector<gate_index_t>> targetGates;
 
 // zbiór sygnałów wyjściowych
 set<signal_t> inputs;
@@ -54,41 +64,40 @@ set<signal_t> inputs;
 // zbiór sygnałów wyjściowych
 unordered_set<signal_t> outputs;
 
-// tymczasowo?
-GateTypes getGateType(string s) {
-    switch (s) {
-    case "NOT":     return GateTypes::NOT;
-    case "OR":      return GateTypes::OR;
-    case "NOR":     return GateTypes::NOR;
-    case "AND":     return GateTypes::AND;
-    case "NAND":    return GateTypes::NAND;
-    case "XOR":     return GateTypes::XOR;
-
-    default:        return 0;
+GateTypes parseGateType(string &s) {
+    if (s == "NOT")
+        return GateTypes::NOT;
+    if (s == "OR")
+        return GateTypes::OR;
+    if (s == "NOR")
+        return GateTypes::NOR;
+    if (s == "AND")
+        return GateTypes::AND;
+    if (s == "NAND")
+        return GateTypes::NAND;
+    if (s == "XOR")
+        return GateTypes::XOR;
+    // todo: spytać na labach
+    throw exception();
 }
 
 // sprawdza poprawność składniową linii
-// todo: czy numery sygnałów mieszczą się w zakresie
-// to moze byc 1 pattern ale nie wiem czy jest czytelniej
-bool isValidGate(string s) {
-    regex notGate ("\\s*NOT(\\s+\\d+){2}\\s*");
-    regex xorGate ("\\s*XOR(\\s+\\d+){3}\\s*");
-    regex otherGate ("\\s*(AND|NAND|OR|NOR)(\\s+\\d+){3,}\\s*");
+// funkcja zakłada że liczba postaci 00123 jest dobra
+// todo: wykluczyyć same zera
+bool isValidGate(string &s) {
+    regex notGate("\\s*NOT(\\s+\\d{1,6}){2}\\s*");
+    regex xorGate("\\s*XOR(\\s+\\d{1,6}){3}\\s*");
+    regex otherGate("\\s*(AND|NAND|OR|NOR)(\\s+\\d{1,6}){3,}\\s*");
 
     return regex_match(s, notGate)
-        || regex_match(s, xorGate)
-        || regex_match(s, otherGate);
+           || regex_match(s, xorGate)
+           || regex_match(s, otherGate);
 }
 
-//todo:
-// trzeba zmienić nazwę na coś po angielsku
-void wczytaj() {
+void read() {
     size_t lineIdx = 1; // linie indeksowane od 1 jak w treści
     int gateIdx = 0;
     string line;
-    string gateType;
-    signal_t outputSignal;
-
     bool invalidGates = false;
 
     while (getline(cin, line)) {
@@ -98,30 +107,35 @@ void wczytaj() {
             cerr << "Error in line " << lineIdx << ": " << line;
             invalidGates = true;
         } else {
+            gate_index_t gateIdx = 0;
+            string gateType;
+            signal_t outputSignal;
             stringstream ss(line);
+
             ss >> gateType >> outputSignal;
 
-            if (outputs.contains(outputSignal)) {   // sprawdzam czy jest zwarcie
+            if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
                 cerr << "Error in line " << lineIdx << ": signal " <<
-                    outputSignal << " is assigned to multiple outputs.";
+                     outputSignal << " is assigned to multiple outputs.";
                 invalidGates = true;
             } else {
                 outputs.insert(outputSignal);   // wyjście dodane do setu
             }
 
-            vector<signal_t> inputSignals ((istream_iterator<signal_t>(ss)),
-                    istream_iterator<signal_t>());  // numery sygnałów wejściowych
+            // numery sygnałów wejściowych
+            vector<signal_t> inputSignals((istream_iterator<signal_t>(ss)),
+                                          istream_iterator<signal_t>());
 
             // nowa bramka dodana do wektora gates
-            gates.push_back({getGateType(gateType), outputSignal, inputSignals}); 
+            gates.emplace_back(parseGateType(gateType), outputSignal,
+                               inputSignals);
             gateIdx++;
 
-            for (signal_t sig : inputSignals) {
-                if (!doJakichBramekIdzieSyngal.contains(sig)) {
-                    doJakichBramekIdzieSyngal.insert({sig, vector<int>{gateIdx}});
-                } else {
-                    doJakichBramekIdzieSyngal.at(sig).push_back(gateIdx);
-                }
+            signalStates[outputSignal] = false;
+
+            for (signal_t sig: inputSignals) {
+                targetGates[sig].push_back(gateIdx);
+                signalStates[sig] = false;
             }
         }
     }
@@ -131,50 +145,62 @@ void wczytaj() {
     }
 }
 
-// todo: czy ta nazwa jest dobra?
 //  czy to 1 i 2 jest ok czy to magiczne stałe? (może enum zrobić?)
-bool topologicalSortHelper(int gateIdx, vector<int8_t> &visited, stack<int> &stos) {
-    if (visited[gateIdx] == 1) {
+bool topologicalSortHelper(gate_index_t gateIdx, vector<int8_t> &visited,
+                           stack<gate_index_t> &gatesStack) {
+    static const int8_t IN_PROGRESS = 1;
+    static const int8_t DONE = 2;
+
+    if (visited[gateIdx] == IN_PROGRESS) {
         return false;
     }
-    visited[gateIdx] = 1;
-    for (int g : doJakichBramekIdzieSyngal[get<1>(gates[gateIdx])]) {
-        if (visited[g] == 0 && !topologicalSortHelper(g, visited, stos)) {
+
+    visited[gateIdx] = IN_PROGRESS;
+
+    for (gate_index_t g: targetGates[get<1>(gates[gateIdx])]) {
+        if (visited[g] == 0 && !topologicalSortHelper(g, visited,
+                                                      gatesStack)) {
             return false;
         }
     }
-    visited[gateIdx] = 2;
-    stos.push(gateIdx);
+
+    visited[gateIdx] = DONE;
+    gatesStack.push(gateIdx);
+
     return true;
 }
 
 bool topologicalSort() {
-    // todo: może tu zwykły int?
-    vector<int8_t> visited;
-    // todo: nazwać to
-    stack<int> stos;
-    for (int i = 0; (size_t) i < gates.size(); i++) {
-        if (visited[i] == 0 && !topologicalSortHelper(i, visited, stos)) {
+    // todo: spytać na labie o typ?
+    vector<int8_t> visited(gates.size());
+    stack<gate_index_t> gatesStack;
+
+    for (gate_index_t i = 0; i < gates.size(); i++) {
+        if (visited[i] == 0 && !topologicalSortHelper(i, visited,
+                                                      gatesStack)) {
             return false;
         }
     }
-    while (!stos.empty()) {
-        topologicalOrder.push_back(stos.top());
-        stos.pop();
+
+    while (!gatesStack.empty()) {
+        topologicalOrder.push_back(gatesStack.top());
+        gatesStack.pop();
     }
+
     return true;
 }
 
 void findInputs() {
-    for (auto &signal : signalStates) {
+    // todo: spytać na labie czy może być auto
+    for (auto &signal: signalStates) {
         if (!outputs.count(signal.first)) {
             inputs.insert(signal.first);
         }
     }
 }
 
-bool evalOr(vector<signal_t> &signals) {
-    for (signal_t signal : signals) {
+bool evalOr(const vector<signal_t> &signals) {
+    for (signal_t signal: signals) {
         if (signalStates[signal]) {
             return true;
         }
@@ -182,8 +208,8 @@ bool evalOr(vector<signal_t> &signals) {
     return false;
 }
 
-bool evalAnd(vector<signal_t> &signals) {
-    for (signal_t signal : signals) {
+bool evalAnd(const vector<signal_t> &signals) {
+    for (signal_t signal: signals) {
         if (!signalStates[signal]) {
             return false;
         }
@@ -193,25 +219,28 @@ bool evalAnd(vector<signal_t> &signals) {
 
 // todo: może by tu coś do zmiennych pomocniczych wyciągnął?
 void eval() {
-    for (int gateIdx : topologicalOrder) {
+    for (gate_index_t gateIdx: topologicalOrder) {
+        const signal_t outputSignal = get<1>(gates[gateIdx]);
+        const vector<signal_t> &inputSignals = get<2>(gates[gateIdx]);
+
         switch (get<0>(gates[gateIdx])) {
             case GateTypes::NOT:
-                signalStates[get<1>(gates[gateIdx])] = !get<2>(gates[gateIdx])[0];
+                signalStates[outputSignal] = !inputSignals[0];
                 break;
             case GateTypes::OR:
-                signalStates[get<1>(gates[gateIdx])] = evalOr(get<2>(gates[gateIdx]));
+                signalStates[outputSignal] = evalOr(inputSignals);
                 break;
             case GateTypes::NOR:
-                signalStates[get<1>(gates[gateIdx])] = !evalOr(get<2>(gates[gateIdx]));
+                signalStates[outputSignal] = !evalOr(inputSignals);
                 break;
             case GateTypes::AND:
-                signalStates[get<1>(gates[gateIdx])] = evalAnd(get<2>(gates[gateIdx]));
+                signalStates[outputSignal] = evalAnd(inputSignals);
                 break;
             case GateTypes::NAND:
-                signalStates[get<1>(gates[gateIdx])] = !evalAnd(get<2>(gates[gateIdx]));
+                signalStates[outputSignal] = !evalAnd(inputSignals);
                 break;
             case GateTypes::XOR:
-                signalStates[get<1>(gates[gateIdx])] = get<2>(gates[gateIdx])[0] ^ get<2>(gates[gateIdx])[0];
+                signalStates[outputSignal] = inputSignals[0] ^ inputSignals[1];
                 break;
         }
     }
@@ -219,25 +248,38 @@ void eval() {
 
 // wypisywanie wyjśćia
 void printSignalsCombination() {
-    for (auto &el : signalStates) {
-        cout << el.second << " ";
+    for (auto &el: signalStates) {
+        cout << el.second;
     }
     cout << endl;
 }
 
 int main() {
-    wczytaj();
+    read();
     if (!topologicalSort()) {
+        // todo: spytać czy ; jako 81 znak to bardzo źle?
         cerr << "Error: sequential logic analysis has not yet been implemented.";
         return 0;
     }
     findInputs();
     size_t m = inputs.size();
-    // todo: czy 1ULL jest dobre?
-    for (size_t i = 0; i < 1ULL<<m; ++i) {
+
+    DEBUG(
+            cout << m << "\n";
+            for (auto i : inputs) {
+                cout << i << " ";
+            }
+            cout << "\n";
+            for (auto o : outputs) {
+                cout << o << " ";
+            }
+            cout << "\n";
+            );
+
+    for (unsigned long long i = 0; i < 1ULL << m; ++i) {
         auto it = inputs.begin();
         for (int j = (int) (m - 1); j >= 0; j--) {
-            signalStates[*it] = i & (1 << j);
+            signalStates[*it] = i & (1ULL << j);
             it++;
         }
         eval();
