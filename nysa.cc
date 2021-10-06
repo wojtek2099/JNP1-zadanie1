@@ -113,7 +113,7 @@ void wczytaj() {
                     istream_iterator<signal_t>());  // numery sygnałów wejściowych
 
             // nowa bramka dodana do wektora gates
-            gates.push_back({getGateType(gateType), outputSignal, inputSignals}); //todo: mapowanie na enuma
+            gates.push_back({getGateType(gateType), outputSignal, inputSignals}); 
             gateIdx++;
 
             for (signal_t sig : inputSignals) {
