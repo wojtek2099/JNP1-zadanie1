@@ -54,6 +54,19 @@ set<signal_t> inputs;
 // zbiór sygnałów wyjściowych
 unordered_set<signal_t> outputs;
 
+// tymczasowo?
+GateTypes getGateType(string s) {
+    switch (s) {
+    case "NOT":     return GateTypes::NOT;
+    case "OR":      return GateTypes::OR;
+    case "NOR":     return GateTypes::NOR;
+    case "AND":     return GateTypes::AND;
+    case "NAND":    return GateTypes::NAND;
+    case "XOR":     return GateTypes::XOR;
+
+    default:        return 0;
+}
+
 // sprawdza poprawność składniową linii
 // todo: czy numery sygnałów mieszczą się w zakresie
 // to moze byc 1 pattern ale nie wiem czy jest czytelniej
@@ -100,7 +113,7 @@ void wczytaj() {
                     istream_iterator<signal_t>());  // numery sygnałów wejściowych
 
             // nowa bramka dodana do wektora gates
-            gates.push_back({GateTypes::AND, outputSignal, inputSignals}); //todo: mapowanie na enuma
+            gates.push_back({getGateType(gateType), outputSignal, inputSignals}); //todo: mapowanie na enuma
             gateIdx++;
 
             for (signal_t sig : inputSignals) {
