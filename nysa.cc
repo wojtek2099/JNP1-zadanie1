@@ -104,7 +104,7 @@ void read() {
 
 
         if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
-            cerr << "Error in line " << lineIdx << ": " << line;
+            cerr << "Error in line " << lineIdx << ": " << line << endl;
             invalidGates = true;
         } else {
             string gateType;
@@ -115,7 +115,7 @@ void read() {
 
             if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
                 cerr << "Error in line " << lineIdx << ": signal " <<
-                     outputSignal << " is assigned to multiple outputs.";
+                     outputSignal << " is assigned to multiple outputs.\n";
                 invalidGates = true;
             } else {
                 outputs.insert(outputSignal);   // wyjście dodane do setu
@@ -261,7 +261,7 @@ int main() {
     read();
     if (!topologicalSort()) {
         // todo: spytać czy ; jako 81 znak to bardzo źle?
-        cerr << "Error: sequential logic analysis has not yet been implemented.";
+        cerr << "Error: sequential logic analysis has not yet been implemented.\n";
         return 0;
     }
     findInputs();
