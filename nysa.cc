@@ -226,7 +226,7 @@ void eval() {
 
         switch (get<0>(gates[gateIdx])) {
             case GateTypes::NOT:
-                signalStates[outputSignal] = !inputSignals[0];
+                signalStates[outputSignal] = !signalStates[inputSignals[0]];
                 break;
             case GateTypes::OR:
                 signalStates[outputSignal] = evalOr(inputSignals);
@@ -241,7 +241,9 @@ void eval() {
                 signalStates[outputSignal] = !evalAnd(inputSignals);
                 break;
             case GateTypes::XOR:
-                signalStates[outputSignal] = inputSignals[0] ^ inputSignals[1];
+                signalStates[outputSignal] =
+                        signalStates[inputSignals[0]]
+                        ^ signalStates[inputSignals[1]];
                 break;
         }
     }
