@@ -96,18 +96,17 @@ bool isValidGate(string &s) {
 
 void read() {
     size_t lineIdx = 1; // linie indeksowane od 1 jak w treści
-    int gateIdx = 0;
     string line;
+    gate_index_t gateIdx = 0;
     bool invalidGates = false;
 
     while (getline(cin, line)) {
-        lineIdx++;
+
 
         if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
             cerr << "Error in line " << lineIdx << ": " << line;
             invalidGates = true;
         } else {
-            gate_index_t gateIdx = 0;
             string gateType;
             signal_t outputSignal;
             stringstream ss(line);
@@ -129,7 +128,7 @@ void read() {
             // nowa bramka dodana do wektora gates
             gates.emplace_back(parseGateType(gateType), outputSignal,
                                inputSignals);
-            gateIdx++;
+
 
             signalStates[outputSignal] = false;
 
@@ -137,7 +136,9 @@ void read() {
                 targetGates[sig].push_back(gateIdx);
                 signalStates[sig] = false;
             }
+            gateIdx++;
         }
+        lineIdx++;
     }
 
     if (invalidGates) {
