@@ -85,9 +85,9 @@ GateTypes parseGateType(string &s) {
 // funkcja zakłada że liczba postaci 00123 jest dobra
 // todo: wykluczyyć same zera
 bool isValidGate(string &s) {
-    regex notGate("\\s*NOT(\\s+\\d{1,6}){2}\\s*");
-    regex xorGate("\\s*XOR(\\s+\\d{1,6}){3}\\s*");
-    regex otherGate("\\s*(AND|NAND|OR|NOR)(\\s+\\d{1,6}){3,}\\s*");
+    regex notGate("\\s*NOT(\\s+(?!0)\\d{1,9}){2}\\s*");
+    regex xorGate("\\s*XOR(\\s+(?!0)\\d{1,9}){3}\\s*");
+    regex otherGate("\\s*(AND|NAND|OR|NOR)(\\s+(?!0)\\d{1,9}){3,}\\s*");
 
     return regex_match(s, notGate)
            || regex_match(s, xorGate)
@@ -96,18 +96,17 @@ bool isValidGate(string &s) {
 
 void read() {
     size_t lineIdx = 1; // linie indeksowane od 1 jak w treści
-    int gateIdx = 0;
     string line;
+    gate_index_t gateIdx = 0;
     bool invalidGates = false;
 
     while (getline(cin, line)) {
-        lineIdx++;
+
 
         if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
-            cerr << "Error in line " << lineIdx << ": " << line;
+            cerr << "Error in line " << lineIdx << ": " << line << endl;
             invalidGates = true;
         } else {
-            gate_index_t gateIdx = 0;
             string gateType;
             signal_t outputSignal;
             stringstream ss(line);
@@ -116,7 +115,7 @@ void read() {
 
             if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
                 cerr << "Error in line " << lineIdx << ": signal " <<
-                     outputSignal << " is assigned to multiple outputs.";
+                     outputSignal << " is assigned to multiple outputs.\n";
                 invalidGates = true;
             } else {
                 outputs.insert(outputSignal);   // wyjście dodane do setu
@@ -129,7 +128,7 @@ void read() {
             // nowa bramka dodana do wektora gates
             gates.emplace_back(parseGateType(gateType), outputSignal,
                                inputSignals);
-            gateIdx++;
+
 
             signalStates[outputSignal] = false;
 
@@ -137,7 +136,9 @@ void read() {
                 targetGates[sig].push_back(gateIdx);
                 signalStates[sig] = false;
             }
+            gateIdx++;
         }
+        lineIdx++;
     }
 
     if (invalidGates) {
@@ -225,7 +226,7 @@ void eval() {
 
         switch (get<0>(gates[gateIdx])) {
             case GateTypes::NOT:
-                signalStates[outputSignal] = !inputSignals[0];
+                signalStates[outputSignal] = !signalStates[inputSignals[0]];
                 break;
             case GateTypes::OR:
                 signalStates[outputSignal] = evalOr(inputSignals);
@@ -240,7 +241,9 @@ void eval() {
                 signalStates[outputSignal] = !evalAnd(inputSignals);
                 break;
             case GateTypes::XOR:
-                signalStates[outputSignal] = inputSignals[0] ^ inputSignals[1];
+                signalStates[outputSignal] =
+                        signalStates[inputSignals[0]]
+                        ^ signalStates[inputSignals[1]];
                 break;
         }
     }
@@ -258,7 +261,7 @@ int main() {
     read();
     if (!topologicalSort()) {
         // todo: spytać czy ; jako 81 znak to bardzo źle?
-        cerr << "Error: sequential logic analysis has not yet been implemented.";
+        cerr << "Error: sequential logic analysis has not yet been implemented.\n";
         return 0;
     }
     findInputs();
