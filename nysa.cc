@@ -9,8 +9,6 @@
 // bramek jest co najwyżej tyle co sygnałów bo każda musi mieć osobne wyjście
 // układ bramek towrzy DAG (directed acyclic graph)
 // ****************************************
-// todo: dodać const tam gdzie trzeba
-// ****************************************
 
 #include <iostream>
 #include <map>
@@ -21,14 +19,6 @@
 #include <stack>
 #include <regex>
 #include <sstream>
-
-#define DEBUG(x)        \
-    do {                \
-        x               \
-        cout.flush();   \
-    } while (0)
-
-#define DEBUG(x)
 
 using namespace std;
 
@@ -64,7 +54,7 @@ set<signal_t> inputs;
 // zbiór sygnałów wyjściowych
 unordered_set<signal_t> outputs;
 
-GateTypes parseGateType(string &s) {
+GateTypes parseGateType(const string &s) {
     if (s == "NOT")
         return GateTypes::NOT;
     if (s == "OR")
@@ -77,14 +67,17 @@ GateTypes parseGateType(string &s) {
         return GateTypes::NAND;
     if (s == "XOR")
         return GateTypes::XOR;
+
     // todo: spytać na labach
     throw exception();
 }
 
 // sprawdza poprawność składniową linii
 // funkcja zakłada że liczba postaci 00123 jest dobra
-// todo: wykluczyyć same zera
-bool isValidGate(string &s) {
+// todo: wykluczyć same zera
+// teraz liczba postaci nie 00123 jest dobra
+// todo: spytać o zera wiodące
+bool isValidGate(const string &s) {
     regex notGate("\\s*NOT(\\s+(?!0)\\d{1,9}){2}\\s*");
     regex xorGate("\\s*XOR(\\s+(?!0)\\d{1,9}){3}\\s*");
     regex otherGate("\\s*(AND|NAND|OR|NOR)(\\s+(?!0)\\d{1,9}){3,}\\s*");
@@ -95,7 +88,7 @@ bool isValidGate(string &s) {
 }
 
 void read() {
-    size_t lineIdx = 1; // linie indeksowane od 1 jak w treści
+    size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
     string line;
     gate_index_t gateIdx = 0;
     bool invalidGates = false;
@@ -132,7 +125,7 @@ void read() {
 
             signalStates[outputSignal] = false;
 
-            for (signal_t sig : inputSignals) {
+            for (signal_t sig: inputSignals) {
                 targetGates[sig].push_back(gateIdx);
                 signalStates[sig] = false;
             }
@@ -146,7 +139,6 @@ void read() {
     }
 }
 
-//  czy to 1 i 2 jest ok czy to magiczne stałe? (może enum zrobić?)
 bool topologicalSortHelper(gate_index_t gateIdx, vector<int8_t> &visited,
                            stack<gate_index_t> &gatesStack) {
     static const int8_t IN_PROGRESS = 1;
@@ -158,7 +150,9 @@ bool topologicalSortHelper(gate_index_t gateIdx, vector<int8_t> &visited,
 
     visited[gateIdx] = IN_PROGRESS;
 
-    for (gate_index_t g : targetGates[get<1>(gates[gateIdx])]) {
+//todo: spytać czy może być bez spacji przed : ?
+// spytać czy g powinno być const?
+    for (gate_index_t g: targetGates[get<1>(gates[gateIdx])]) {
         if ((visited[g] == 0 && !topologicalSortHelper(g, visited,
                                                        gatesStack))
             || visited[g] == IN_PROGRESS) {
@@ -173,11 +167,11 @@ bool topologicalSortHelper(gate_index_t gateIdx, vector<int8_t> &visited,
 }
 
 bool topologicalSort() {
-    // todo: spytać na labie o typ?
+    // todo: spytać o typ?
     vector<int8_t> visited(gates.size());
     stack<gate_index_t> gatesStack;
 
-    for (gate_index_t i = 0 ; i < gates.size() ; i++) {
+    for (gate_index_t i = 0; i < gates.size(); i++) {
         if (visited[i] == 0 && !topologicalSortHelper(i, visited,
                                                       gatesStack)) {
             return false;
@@ -193,8 +187,8 @@ bool topologicalSort() {
 }
 
 void findInputs() {
-    // todo: spytać na labie czy może być auto
-    for (auto &signal : signalStates) {
+    // todo: spytać czy może być auto
+    for (auto &signal: signalStates) {
         if (!outputs.count(signal.first)) {
             inputs.insert(signal.first);
         }
@@ -202,7 +196,7 @@ void findInputs() {
 }
 
 bool evalOr(const vector<signal_t> &signals) {
-    for (signal_t signal : signals) {
+    for (signal_t signal: signals) {
         if (signalStates[signal]) {
             return true;
         }
@@ -211,7 +205,7 @@ bool evalOr(const vector<signal_t> &signals) {
 }
 
 bool evalAnd(const vector<signal_t> &signals) {
-    for (signal_t signal : signals) {
+    for (signal_t signal: signals) {
         if (!signalStates[signal]) {
             return false;
         }
@@ -219,9 +213,8 @@ bool evalAnd(const vector<signal_t> &signals) {
     return true;
 }
 
-// todo: może by tu coś do zmiennych pomocniczych wyciągnął?
 void eval() {
-    for (gate_index_t gateIdx : topologicalOrder) {
+    for (gate_index_t gateIdx: topologicalOrder) {
         const signal_t outputSignal = get<1>(gates[gateIdx]);
         const vector<signal_t> &inputSignals = get<2>(gates[gateIdx]);
 
@@ -252,7 +245,7 @@ void eval() {
 
 // wypisywanie wyjśćia
 void printSignalsCombination() {
-    for (auto &el : signalStates) {
+    for (auto &el: signalStates) {
         cout << el.second;
     }
     cout << endl;
@@ -260,34 +253,26 @@ void printSignalsCombination() {
 
 int main() {
     read();
+
     if (!topologicalSort()) {
-        // todo: spytać czy ; jako 81 znak to bardzo źle?
-        cerr << "Error: sequential logic analysis has not yet been implemented.\n";
+        cerr << "Error: sequential logic analysis has not yet been "
+                "implemented.\n";
         return 0;
     }
+
     findInputs();
+
     size_t m = inputs.size();
 
-    DEBUG(
-            cout << m << "\n";
-            for (auto i : inputs) {
-                cout << i << " ";
-            }
-            cout << "\n";
-            for (auto o : outputs) {
-                cout << o << " ";
-            }
-            cout << "\n";
-    );
-
-    for (unsigned long long i = 0 ; i < 1ULL << m ; ++i) {
+    for (unsigned long long i = 0; i < 1ULL << m; ++i) {
         auto it = inputs.begin();
-        for (int j = (int) (m - 1) ; j >= 0 ; j--) {
+        for (int j = (int) (m - 1); j >= 0; j--) {
             signalStates[*it] = i & (1ULL << j);
             it++;
         }
         eval();
         printSignalsCombination();
     }
+
     return 0;
 }
