@@ -132,7 +132,7 @@ void read() {
 
             signalStates[outputSignal] = false;
 
-            for (signal_t sig: inputSignals) {
+            for (signal_t sig : inputSignals) {
                 targetGates[sig].push_back(gateIdx);
                 signalStates[sig] = false;
             }
@@ -158,9 +158,10 @@ bool topologicalSortHelper(gate_index_t gateIdx, vector<int8_t> &visited,
 
     visited[gateIdx] = IN_PROGRESS;
 
-    for (gate_index_t g: targetGates[get<1>(gates[gateIdx])]) {
-        if (visited[g] == 0 && !topologicalSortHelper(g, visited,
-                                                      gatesStack)) {
+    for (gate_index_t g : targetGates[get<1>(gates[gateIdx])]) {
+        if ((visited[g] == 0 && !topologicalSortHelper(g, visited,
+                                                       gatesStack))
+            || visited[g] == IN_PROGRESS) {
             return false;
         }
     }
@@ -176,7 +177,7 @@ bool topologicalSort() {
     vector<int8_t> visited(gates.size());
     stack<gate_index_t> gatesStack;
 
-    for (gate_index_t i = 0; i < gates.size(); i++) {
+    for (gate_index_t i = 0 ; i < gates.size() ; i++) {
         if (visited[i] == 0 && !topologicalSortHelper(i, visited,
                                                       gatesStack)) {
             return false;
@@ -193,7 +194,7 @@ bool topologicalSort() {
 
 void findInputs() {
     // todo: spytać na labie czy może być auto
-    for (auto &signal: signalStates) {
+    for (auto &signal : signalStates) {
         if (!outputs.count(signal.first)) {
             inputs.insert(signal.first);
         }
@@ -201,7 +202,7 @@ void findInputs() {
 }
 
 bool evalOr(const vector<signal_t> &signals) {
-    for (signal_t signal: signals) {
+    for (signal_t signal : signals) {
         if (signalStates[signal]) {
             return true;
         }
@@ -210,7 +211,7 @@ bool evalOr(const vector<signal_t> &signals) {
 }
 
 bool evalAnd(const vector<signal_t> &signals) {
-    for (signal_t signal: signals) {
+    for (signal_t signal : signals) {
         if (!signalStates[signal]) {
             return false;
         }
@@ -220,7 +221,7 @@ bool evalAnd(const vector<signal_t> &signals) {
 
 // todo: może by tu coś do zmiennych pomocniczych wyciągnął?
 void eval() {
-    for (gate_index_t gateIdx: topologicalOrder) {
+    for (gate_index_t gateIdx : topologicalOrder) {
         const signal_t outputSignal = get<1>(gates[gateIdx]);
         const vector<signal_t> &inputSignals = get<2>(gates[gateIdx]);
 
@@ -251,7 +252,7 @@ void eval() {
 
 // wypisywanie wyjśćia
 void printSignalsCombination() {
-    for (auto &el: signalStates) {
+    for (auto &el : signalStates) {
         cout << el.second;
     }
     cout << endl;
@@ -277,11 +278,11 @@ int main() {
                 cout << o << " ";
             }
             cout << "\n";
-            );
+    );
 
-    for (unsigned long long i = 0; i < 1ULL << m; ++i) {
+    for (unsigned long long i = 0 ; i < 1ULL << m ; ++i) {
         auto it = inputs.begin();
-        for (int j = (int) (m - 1); j >= 0; j--) {
+        for (int j = (int) (m - 1) ; j >= 0 ; j--) {
             signalStates[*it] = i & (1ULL << j);
             it++;
         }
