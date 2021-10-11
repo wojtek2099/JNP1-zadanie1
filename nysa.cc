@@ -17,6 +17,14 @@
 //  anonimowa przestrzeń nazw dla funkcji pomocniczych
 //  pilnować formatowania ręcznie i nie polegać na clionie
 
+
+// todo: usunąć powyższe komentarze przed wysłaniem
+
+// nysa.cc
+// autorzy: Mateusz Malinowski (mm429561), Paweł Olejnik (po417770)
+// data: paździerik 2021
+// opis: todo <-----------------
+
 #include <iostream>
 #include <map>
 #include <unordered_map>
@@ -29,38 +37,46 @@
 
 using namespace std;
 
-// klasa reprezentująca typy bramek logicznych
+// Klasa reprezentująca typy bramek logicznych.
 enum class GateTypes {
     NOT, OR, NOR, AND, NAND, XOR
 };
 
-// sygnały mają nr od 1 do 999999999 więc potrzeba conajmniej 32 bitowego typu
+// Typ reprezentujący sygnał. Sygnał ma numer z zakresu od 1 do 999999999,
+// dlatego jest reprezentowany jako nieujemna liczba 32-bitowa.
 using signal_t = uint32_t;
+
+// Typ reprezentujący indeks bramki logicznej.
 using gate_index_t = size_t;
-// <TYP, wyjście, wejścia>
+
+// Typ reprezentujący bramkę logiczną jako krotkę składającą się z:
+// -typu bramki,
+// -sygnału wyjściowego,
+// -wektora wygnałów wejściowych.
 using gate_t = tuple<GateTypes, signal_t, vector<signal_t>>;
 
-// przechowuje stan sygnałów w danej chwili
-// potrzebna jest mapa, bo na kóncu wypisujemy posortowane
+// Mapa przechowująca stan sygnałów. Utrzymanie posortowania elementów jest
+// istotne ze zwględnu na określoną kolejność wypisywania.
 map<signal_t, bool> signalStates;
 
-// wektor przechowujący wszystkie bramki
-// bramki indeksujemy od 0
+// Wektor przechowujący bramki logiczne.
 vector<gate_t> gates;
 
-// bramki posortowane topologicznie
+// Wektor przechowujący indeksy bramek logicznych w porządku topologicznym.
 vector<gate_index_t> topologicalOrder;
 
-// dla każdego sygnału musimy pamiętać do jakich bramek wchodzi
-// na wektorze trzymamy indeks bramki
+// Mapa przechowująca dla każdego sygnału indeksy bramek, dla których ten
+// sygnał jest sygnałem wejściowym.
 unordered_map<signal_t, vector<gate_index_t>> targetGates;
 
-// zbiór sygnałów wyjściowych
+// Zbiór sygnałów wejściowych. Utrzymanie posortowania elementów jest
+// istotne ze zwględnu na określoną kolejność przetwarzania.
 set<signal_t> inputs;
 
-// zbiór sygnałów wyjściowych
+// Zbiór sygnałów wyjściowych.
 unordered_set<signal_t> outputs;
 
+// Funckja zamieniająca nazwę bramki w postaci teksu na odpowiedni typ.
 GateTypes parseGateType(const string &s) {
     if (s == "NOT")
         return GateTypes::NOT;
@@ -75,11 +91,12 @@ GateTypes parseGateType(const string &s) {
     if (s == "XOR")
         return GateTypes::XOR;
 
+    // Z założeń programu ten wyjątek nie zostanie nigdy podniesiony.
     throw exception();
 }
 
-// sprawdza poprawność składniową linii
-// funkcja zakłada że liczba postaci 00123 jest dobra
+// Funckcja sprawdzająca poprawność składniową linii.
+// Funkcja zakłada, że liczby zawierające zera wiodące są poprawne.
 bool isValidGate(const string &s) {
     regex notGate("\\s*NOT(\\s+0*[1-9]\\d{0,8}){2}\\s*");
     regex xorGate("\\s*XOR(\\s+0*[1-9]\\d{0,8}){3}\\s*");
@@ -90,6 +107,7 @@ bool isValidGate(const string &s) {
            || regex_match(s, otherGate);
 }
 
+// todo: skomentować to i wszystkie pomocnicze które utworzyłeś
 void read() {
     size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
     string line;
@@ -139,10 +157,13 @@ void read() {
     }
 }
 
+// Klasa reprezemtująca status bramki logicznej w trakcie sortowania
+// topologicznego.
 enum class GateSortingStatus {
     UNVISITED, IN_PROGRESS, DONE
 };
 
+// todo: skomentować to
 bool topologicalSortHelper(gate_index_t gateIdx,
                            vector<GateSortingStatus> &visited,
                            stack<gate_index_t> &gatesStack) {
@@ -166,6 +187,7 @@ bool topologicalSortHelper(gate_index_t gateIdx,
     return true;
 }
 
+// todo: skomentować to
 bool topologicalSort() {
     vector<GateSortingStatus> visited(gates.size());
     stack<gate_index_t> gatesStack;
@@ -185,6 +207,7 @@ bool topologicalSort() {
     return true;
 }
 
+// Funkcja sprawdzająca, które z sygnałów są sygnałami wejściowymi układu.
 void findInputs() {
     for (const auto &signal: signalStates) {
         if (!outputs.count(signal.first)) {
@@ -193,6 +216,7 @@ void findInputs() {
     }
 }
 
+// Funckja wyliczająca stan wyjściowy bramki OR.
 bool evalOr(const vector<signal_t> &signals) {
     for (const signal_t signal: signals) {
         if (signalStates[signal]) {
@@ -202,6 +226,7 @@ bool evalOr(const vector<signal_t> &signals) {
     return false;
 }
 
+// Funckja wyliczająca stan wyjściowy bramki AND.
 bool evalAnd(const vector<signal_t> &signals) {
     for (const signal_t signal: signals) {
         if (!signalStates[signal]) {
@@ -211,6 +236,7 @@ bool evalAnd(const vector<signal_t> &signals) {
     return true;
 }
 
+// Funckja wyliczająca stan końcowy układu.
 void eval() {
     for (const gate_index_t gateIdx: topologicalOrder) {
         const signal_t outputSignal = get<1>(gates[gateIdx]);
@@ -241,7 +267,7 @@ void eval() {
     }
 }
 
-// wypisywanie wyjśćia
+// todo: skomentować to
 void printSignalsCombination() {
     for (const auto &el: signalStates) {
         cout << el.second;
@@ -249,6 +275,7 @@ void printSignalsCombination() {
     cout << endl;
 }
 
+// todo: może skomentować coś w mainie
 int main() {
     read();
 
