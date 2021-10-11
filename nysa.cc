@@ -98,29 +98,40 @@ bool isValidGate(const string &s) {
            || regex_match(s, otherGate);
 }
 
+// Funkcja wypisująca błąd niepoprawnej składni bramki.
 void syntaxError(const size_t lineIdx, const string &line) {
     cerr << "Error in line " << lineIdx << ": " << line << endl;
 }
 
+// Funkcja wypisująca błąd podłączenia jednego sygnału do wielu wyjść.
 void multipleOutputsError(const size_t lineIdx, const signal_t outputSignal) {
     cerr << "Error in line " << lineIdx << ": signal " << outputSignal
          << " is assigned to multiple outputs.\n";
 }
 
-bool readLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) {
+// Funkcja parsująca jedną linię zawierającą informacje o bramce logicznej.
+// Funkcja zakłada, że linia jest składniowo poprawna. Zwraca `true`, jeśli 
+// linia została odczytana poprawnie, w przeciwnym przypadku `false`.
+bool parseLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) {
+    bool invalidGate = false;
     string gateType;
     signal_t outputSignal;
     stringstream ss(line);
 
     ss >> gateType >> outputSignal;
 
-    bool invalidGate = false;
+    // if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
+    //     multipleOutputsError(lineIdx, outputSignal);
+    //     invalidGate = true;
+    // } else {
+    //     outputs.insert(outputSignal);   // wyjście dodane do setu
+    // }
 
-    if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
+    // sprawdzenie czy jest zwarcie
+    // todo: od razu sprawdzam i ewentualnie wstawiam - czy to jest dobre?
+    if (!get<1>(outputs.insert(outputSignal))) {
         multipleOutputsError(lineIdx, outputSignal);
         invalidGate = true;
-    } else {
-        outputs.insert(outputSignal);   // wyjście dodane do setu
     }
 
     // numery sygnałów wejściowych
@@ -128,10 +139,10 @@ bool readLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) {
                                     istream_iterator<signal_t>());
 
     // nowa bramka dodana do wektora gates
-    gates.emplace_back(parseGateType(gateType), outputSignal,
-                        inputSignals);
+    gates.emplace_back(parseGateType(gateType), outputSignal, inputSignals);
 
-    signalStates[outputSignal] = false;
+    // todo: wygląda na to że ta linijka jednak nie jest konieczna
+    // signalStates[outputSignal] = false;
 
     for (const signal_t sig: inputSignals) {
         targetGates[sig].push_back(gateIdx);
@@ -142,7 +153,7 @@ bool readLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) {
     return !invalidGate;
 }
 
-// todo: skomentować to i wszystkie pomocnicze które utworzyłeś
+// Funkcja czytająca opis układu ze standardowego wejścia.
 void read() {
     size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
     string line;
@@ -154,11 +165,13 @@ void read() {
             syntaxError(lineIdx, line);
             invalidGates = true;
         } else {
-            invalidGates = !readLine(lineIdx, line, gateIdx) || invalidGates;
+            invalidGates = !parseLine(lineIdx, line, gateIdx) || invalidGates;
         }
         lineIdx++;
     }
 
+    // todo: czy lepszą opcją byłoby zwracanie przez read boola i przeniesienie
+    // tej linijki do maina?
     if (invalidGates) {
         exit(1);
     }
