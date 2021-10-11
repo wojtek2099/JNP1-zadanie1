@@ -78,9 +78,9 @@ GateTypes parseGateType(const string &s) {
 // teraz liczba postaci nie 00123 jest dobra
 // todo: spytać o zera wiodące
 bool isValidGate(const string &s) {
-    regex notGate("\\s*NOT(\\s+(?!0)\\d{1,9}){2}\\s*");
-    regex xorGate("\\s*XOR(\\s+(?!0)\\d{1,9}){3}\\s*");
-    regex otherGate("\\s*(AND|NAND|OR|NOR)(\\s+(?!0)\\d{1,9}){3,}\\s*");
+    regex notGate("\\s*NOT(\\s+0*[1-9]\\d{0,8}){2}\\s*");
+    regex xorGate("\\s*XOR(\\s+0*[1-9]\\d{0,8}){3}\\s*");
+    regex otherGate("\\s*(AND|NAND|OR|NOR)(\\s+0*[1-9]\\d{0,8}){3,}\\s*");
 
     return regex_match(s, notGate)
            || regex_match(s, xorGate)
