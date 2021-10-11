@@ -98,7 +98,7 @@ bool isValidGate(const string &s) {
            || regex_match(s, otherGate);
 }
 
-// Funkcja wypisująca błąd niepoprawnej składni bramki.
+// Funkcja wypisująca błąd niepoprawnej składni linii.
 void syntaxError(const size_t lineIdx, const string &line) {
     cerr << "Error in line " << lineIdx << ": " << line << endl;
 }
@@ -129,16 +129,14 @@ bool parseLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) 
 
     // sprawdzenie czy jest zwarcie
     // todo: od razu sprawdzam i ewentualnie wstawiam - czy to jest dobre?
-    if (!get<1>(outputs.insert(outputSignal))) {
+    if (get<1>(outputs.insert(outputSignal)) == false) {
         multipleOutputsError(lineIdx, outputSignal);
         invalidGate = true;
     }
 
-    // numery sygnałów wejściowych
     vector<signal_t> inputSignals((istream_iterator<signal_t>(ss)),
                                     istream_iterator<signal_t>());
 
-    // nowa bramka dodana do wektora gates
     gates.emplace_back(parseGateType(gateType), outputSignal, inputSignals);
 
     // todo: wygląda na to że ta linijka jednak nie jest konieczna
@@ -148,20 +146,20 @@ bool parseLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) 
         targetGates[sig].push_back(gateIdx);
         signalStates[sig] = false;
     }
+    
     gateIdx++;
-
     return !invalidGate;
 }
 
 // Funkcja czytająca opis układu ze standardowego wejścia.
 void read() {
-    size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
+    size_t lineIdx = 1;   
     string line;
     gate_index_t gateIdx = 0;
     bool invalidGates = false;
 
     while (getline(cin, line)) {
-        if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
+        if (!isValidGate(line)) {   
             syntaxError(lineIdx, line);
             invalidGates = true;
         } else {
