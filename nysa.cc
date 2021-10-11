@@ -107,6 +107,41 @@ void multipleOutputsError(const size_t lineIdx, const signal_t outputSignal) {
          << " is assigned to multiple outputs.\n";
 }
 
+bool readLine(const size_t lineIdx, const string &line, gate_index_t &gateIdx) {
+    string gateType;
+    signal_t outputSignal;
+    stringstream ss(line);
+
+    ss >> gateType >> outputSignal;
+
+    bool invalidGate = false;
+
+    if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
+        multipleOutputsError(lineIdx, outputSignal);
+        invalidGate = true;
+    } else {
+        outputs.insert(outputSignal);   // wyjście dodane do setu
+    }
+
+    // numery sygnałów wejściowych
+    vector<signal_t> inputSignals((istream_iterator<signal_t>(ss)),
+                                    istream_iterator<signal_t>());
+
+    // nowa bramka dodana do wektora gates
+    gates.emplace_back(parseGateType(gateType), outputSignal,
+                        inputSignals);
+
+    signalStates[outputSignal] = false;
+
+    for (const signal_t sig: inputSignals) {
+        targetGates[sig].push_back(gateIdx);
+        signalStates[sig] = false;
+    }
+    gateIdx++;
+
+    return !invalidGate;
+}
+
 // todo: skomentować to i wszystkie pomocnicze które utworzyłeś
 void read() {
     size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
@@ -119,34 +154,7 @@ void read() {
             syntaxError(lineIdx, line);
             invalidGates = true;
         } else {
-            string gateType;
-            signal_t outputSignal;
-            stringstream ss(line);
-
-            ss >> gateType >> outputSignal;
-
-            if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
-                multipleOutputsError(lineIdx, outputSignal);
-                invalidGates = true;
-            } else {
-                outputs.insert(outputSignal);   // wyjście dodane do setu
-            }
-
-            // numery sygnałów wejściowych
-            vector<signal_t> inputSignals((istream_iterator<signal_t>(ss)),
-                                          istream_iterator<signal_t>());
-
-            // nowa bramka dodana do wektora gates
-            gates.emplace_back(parseGateType(gateType), outputSignal,
-                               inputSignals);
-
-            signalStates[outputSignal] = false;
-
-            for (const signal_t sig: inputSignals) {
-                targetGates[sig].push_back(gateIdx);
-                signalStates[sig] = false;
-            }
-            gateIdx++;
+            invalidGates = !readLine(lineIdx, line, gateIdx) || invalidGates;
         }
         lineIdx++;
     }
