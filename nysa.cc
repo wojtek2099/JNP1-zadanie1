@@ -9,6 +9,13 @@
 // bramek jest co najwyżej tyle co sygnałów bo każda musi mieć osobne wyjście
 // układ bramek towrzy DAG (directed acyclic graph)
 // ****************************************
+// TODO: WAŻNE:
+//  poprawić komentarze
+//  poprawić wypisywanie errorów
+//  skrócić reada
+//  wychodzić z programu z kodem 1 przy błędzie
+//  anonimowa przestrzeń nazw dla funkcji pomocniczych
+//  pilnować formatowania ręcznie i nie polegać na clionie
 
 #include <iostream>
 #include <map>
@@ -68,15 +75,11 @@ GateTypes parseGateType(const string &s) {
     if (s == "XOR")
         return GateTypes::XOR;
 
-    // todo: spytać na labach
     throw exception();
 }
 
 // sprawdza poprawność składniową linii
 // funkcja zakłada że liczba postaci 00123 jest dobra
-// todo: wykluczyć same zera
-// teraz liczba postaci nie 00123 jest dobra
-// todo: spytać o zera wiodące
 bool isValidGate(const string &s) {
     regex notGate("\\s*NOT(\\s+0*[1-9]\\d{0,8}){2}\\s*");
     regex xorGate("\\s*XOR(\\s+0*[1-9]\\d{0,8}){3}\\s*");
@@ -94,8 +97,6 @@ void read() {
     bool invalidGates = false;
 
     while (getline(cin, line)) {
-
-
         if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
             cerr << "Error in line " << lineIdx << ": " << line << endl;
             invalidGates = true;
@@ -122,10 +123,9 @@ void read() {
             gates.emplace_back(parseGateType(gateType), outputSignal,
                                inputSignals);
 
-
             signalStates[outputSignal] = false;
 
-            for (signal_t sig: inputSignals) {
+            for (const signal_t sig: inputSignals) {
                 targetGates[sig].push_back(gateIdx);
                 signalStates[sig] = false;
             }
@@ -135,45 +135,44 @@ void read() {
     }
 
     if (invalidGates) {
-        exit(0);
+        exit(1);
     }
 }
 
-bool topologicalSortHelper(gate_index_t gateIdx, vector<int8_t> &visited,
-                           stack<gate_index_t> &gatesStack) {
-    static const int8_t IN_PROGRESS = 1;
-    static const int8_t DONE = 2;
+enum class GateSortingStatus {
+    UNVISITED, IN_PROGRESS, DONE
+};
 
-    if (visited[gateIdx] == IN_PROGRESS) {
+bool topologicalSortHelper(gate_index_t gateIdx,
+                           vector<GateSortingStatus> &visited,
+                           stack<gate_index_t> &gatesStack) {
+    if (visited[gateIdx] == GateSortingStatus::IN_PROGRESS) {
         return false;
     }
 
-    visited[gateIdx] = IN_PROGRESS;
+    visited[gateIdx] = GateSortingStatus::IN_PROGRESS;
 
-//todo: spytać czy może być bez spacji przed : ?
-// spytać czy g powinno być const?
-    for (gate_index_t g: targetGates[get<1>(gates[gateIdx])]) {
-        if ((visited[g] == 0 && !topologicalSortHelper(g, visited,
-                                                       gatesStack))
-            || visited[g] == IN_PROGRESS) {
+    for (const gate_index_t g: targetGates[get<1>(gates[gateIdx])]) {
+        if ((visited[g] == GateSortingStatus::UNVISITED
+            && !topologicalSortHelper(g, visited, gatesStack))
+            || visited[g] == GateSortingStatus::IN_PROGRESS) {
             return false;
         }
     }
 
-    visited[gateIdx] = DONE;
+    visited[gateIdx] = GateSortingStatus::DONE;
     gatesStack.push(gateIdx);
 
     return true;
 }
 
 bool topologicalSort() {
-    // todo: spytać o typ?
-    vector<int8_t> visited(gates.size());
+    vector<GateSortingStatus> visited(gates.size());
     stack<gate_index_t> gatesStack;
 
     for (gate_index_t i = 0; i < gates.size(); i++) {
-        if (visited[i] == 0 && !topologicalSortHelper(i, visited,
-                                                      gatesStack)) {
+        if (visited[i] == GateSortingStatus::UNVISITED
+            && !topologicalSortHelper(i, visited, gatesStack)) {
             return false;
         }
     }
@@ -187,8 +186,7 @@ bool topologicalSort() {
 }
 
 void findInputs() {
-    // todo: spytać czy może być auto
-    for (auto &signal: signalStates) {
+    for (const auto &signal: signalStates) {
         if (!outputs.count(signal.first)) {
             inputs.insert(signal.first);
         }
@@ -196,7 +194,7 @@ void findInputs() {
 }
 
 bool evalOr(const vector<signal_t> &signals) {
-    for (signal_t signal: signals) {
+    for (const signal_t signal: signals) {
         if (signalStates[signal]) {
             return true;
         }
@@ -205,7 +203,7 @@ bool evalOr(const vector<signal_t> &signals) {
 }
 
 bool evalAnd(const vector<signal_t> &signals) {
-    for (signal_t signal: signals) {
+    for (const signal_t signal: signals) {
         if (!signalStates[signal]) {
             return false;
         }
@@ -214,7 +212,7 @@ bool evalAnd(const vector<signal_t> &signals) {
 }
 
 void eval() {
-    for (gate_index_t gateIdx: topologicalOrder) {
+    for (const gate_index_t gateIdx: topologicalOrder) {
         const signal_t outputSignal = get<1>(gates[gateIdx]);
         const vector<signal_t> &inputSignals = get<2>(gates[gateIdx]);
 
@@ -245,7 +243,7 @@ void eval() {
 
 // wypisywanie wyjśćia
 void printSignalsCombination() {
-    for (auto &el: signalStates) {
+    for (const auto &el: signalStates) {
         cout << el.second;
     }
     cout << endl;
@@ -257,12 +255,12 @@ int main() {
     if (!topologicalSort()) {
         cerr << "Error: sequential logic analysis has not yet been "
                 "implemented.\n";
-        return 0;
+        return 1;
     }
 
     findInputs();
 
-    size_t m = inputs.size();
+    const size_t m = inputs.size();
 
     for (unsigned long long i = 0; i < 1ULL << m; ++i) {
         auto it = inputs.begin();
