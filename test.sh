@@ -18,10 +18,10 @@ do
 
     "./$tested_program" < "$file" 1> "$f_stdout" 2> "$f_stderr"
 
-    if [ $? == 1 ]
-    then
-        echo "error code 1 -> out of memory"
-    else
+#    if [ $? == 1 ]
+#    then
+#        echo "error code 1 -> out of memory"
+#    else
         if diff -qZ "${file%in}out" "$f_stdout"
         then
             echo -e "${filename%in}out ${GREEN}OK${NC}"
@@ -35,24 +35,23 @@ do
         else
             echo -e "${filename%in}err ${RED}WRONG ANSWER${NC}"
         fi
-    fi
+#    fi
 done
 
-valgrind_flags="--error-exitcode=123 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all"
-
-echo "Running valgrind memory leaks tests..."
-
-for file in "$test_dir"/*.in
-do
-    filename=${file/$test_dir\//}
-
-    valgrind $valgrind_flags ./"$tested_program" < "$file" 1> /dev/null 2> "$tmp_dir/val.log"
-
-    if [ "$(cat "$tmp_dir/val.log" | grep -o "no leaks are possible")" == "no leaks are possible" ]
-    then
-        echo -e "$filename ${GREEN}valgrind memory test OK${NC}"
-    else
-        echo -e "$filename ${RED}valgrind memory test FAILED${NC}"
-    fi
-done
-
+#valgrind_flags="--error-exitcode=123 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all"
+#
+#echo "Running valgrind memory leaks tests..."
+#
+#for file in "$test_dir"/*.in
+#do
+#    filename=${file/$test_dir\//}
+#
+#    valgrind $valgrind_flags ./"$tested_program" < "$file" 1> /dev/null 2> "$tmp_dir/val.log"
+#
+#    if [ "$(cat "$tmp_dir/val.log" | grep -o "no leaks are possible")" == "no leaks are possible" ]
+#    then
+#        echo -e "$filename ${GREEN}valgrind memory test OK${NC}"
+#    else
+#        echo -e "$filename ${RED}valgrind memory test FAILED${NC}"
+#    fi
+#done

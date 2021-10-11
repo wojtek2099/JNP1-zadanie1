@@ -1,21 +1,21 @@
-// ****************************************
-// dane z treści, obserwacje i przemyślenia
-// ****************************************
-// jest N sygnałów
-// w tym M sygnałów wejściowych
-// wypisujemy 2^M linii wyjścia
-// więc M będzie małe (max 64 ale moim zdaniem nawet mniej (jakoś tak z 20-25)
-// N może być duże (max 1e9 - 1 -> to jest wprost napisane w treści (realnie < 1e7))
-// bramek jest co najwyżej tyle co sygnałów bo każda musi mieć osobne wyjście
-// układ bramek towrzy DAG (directed acyclic graph)
-// ****************************************
 // TODO: WAŻNE:
-//  poprawić komentarze
 //  poprawić wypisywanie errorów
 //  skrócić reada
 //  wychodzić z programu z kodem 1 przy błędzie
 //  anonimowa przestrzeń nazw dla funkcji pomocniczych
 //  pilnować formatowania ręcznie i nie polegać na clionie
+
+
+// todo: usunąć powyższe komentarze przed wysłaniem
+
+
+// autorzy: Mateusz Malinowski (mm429561), Paweł Olejnik (po417770)
+// data: paździerik 2021
+// opis: Plik zawiera implementację rozwiązania zadania 1. Program korzysta
+// z wyrażeń regularnych do weryfikowania poprawności wejścia. Układ logiczny
+// spełniający specyfikację zadania jest skierowanym grafem acyklicznym.
+// Program wykorzystuje algortym sortowania topologicznego w celu optymalnego
+// przetwarzania układu.
 
 #include <iostream>
 #include <map>
@@ -29,38 +29,45 @@
 
 using namespace std;
 
-// klasa reprezentująca typy bramek logicznych
+// Klasa reprezentująca typy bramek logicznych.
 enum class GateTypes {
     NOT, OR, NOR, AND, NAND, XOR
 };
 
-// sygnały mają nr od 1 do 999999999 więc potrzeba conajmniej 32 bitowego typu
+// Typ reprezentujący sygnał. Sygnał ma numer z zakresu od 1 do 999999999,
+// dlatego jest reprezentowany jako nieujemna liczba 32-bitowa.
 using signal_t = uint32_t;
+
+// Typ reprezentujący indeks bramki logicznej.
 using gate_index_t = size_t;
-// <TYP, wyjście, wejścia>
+
+// Typ reprezentujący bramkę logiczną jako krotkę składającą się z:
+// -typu bramki,
+// -sygnału wyjściowego,
+// -wektora wygnałów wejściowych.
 using gate_t = tuple<GateTypes, signal_t, vector<signal_t>>;
 
-// przechowuje stan sygnałów w danej chwili
-// potrzebna jest mapa, bo na kóncu wypisujemy posortowane
+// Mapa przechowująca stan sygnałów. Utrzymanie posortowania elementów jest
+// istotne ze zwględnu na określoną kolejność wypisywania.
 map<signal_t, bool> signalStates;
 
-// wektor przechowujący wszystkie bramki
-// bramki indeksujemy od 0
+// Wektor przechowujący bramki logiczne.
 vector<gate_t> gates;
 
-// bramki posortowane topologicznie
+// Wektor przechowujący indeksy bramek logicznych w porządku topologicznym.
 vector<gate_index_t> topologicalOrder;
 
-// dla każdego sygnału musimy pamiętać do jakich bramek wchodzi
-// na wektorze trzymamy indeks bramki
+// Mapa przechowująca dla każdego sygnału indeksy bramek, dla których ten
+// sygnał jest sygnałem wejściowym.
 unordered_map<signal_t, vector<gate_index_t>> targetGates;
 
-// zbiór sygnałów wyjściowych
-set<signal_t> inputs;
+// Wektor sygnałów wejściowych.
+vector<signal_t> inputs;
 
-// zbiór sygnałów wyjściowych
+// Zbiór sygnałów wyjściowych.
 unordered_set<signal_t> outputs;
 
+// Funckja zamieniająca nazwę bramki w postaci teksu na odpowiedni typ.
 GateTypes parseGateType(const string &s) {
     if (s == "NOT")
         return GateTypes::NOT;
@@ -75,11 +82,12 @@ GateTypes parseGateType(const string &s) {
     if (s == "XOR")
         return GateTypes::XOR;
 
+    // Z założeń programu ten wyjątek nie zostanie nigdy podniesiony.
     throw exception();
 }
 
-// sprawdza poprawność składniową linii
-// funkcja zakłada że liczba postaci 00123 jest dobra
+// Funckcja sprawdzająca poprawność składniową linii.
+// Funkcja zakłada, że liczby zawierające zera wiodące są poprawne.
 bool isValidGate(const string &s) {
     regex notGate("\\s*NOT(\\s+0*[1-9]\\d{0,8}){2}\\s*");
     regex xorGate("\\s*XOR(\\s+0*[1-9]\\d{0,8}){3}\\s*");
@@ -90,6 +98,7 @@ bool isValidGate(const string &s) {
            || regex_match(s, otherGate);
 }
 
+// todo: skomentować to i wszystkie pomocnicze które utworzyłeś
 void read() {
     size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
     string line;
@@ -139,10 +148,15 @@ void read() {
     }
 }
 
+// Klasa reprezemtująca status bramki logicznej w trakcie sortowania
+// topologicznego.
 enum class GateSortingStatus {
     UNVISITED, IN_PROGRESS, DONE
 };
 
+// Funkcja pomocnicza sortowania topologicznego. Funkcja zwraca `false` jeśli
+// znajdzie cykl (co oznacza, że nie da się posortować topologicznie),
+// w przeciwnym wypadku zwraca `true`.
 bool topologicalSortHelper(gate_index_t gateIdx,
                            vector<GateSortingStatus> &visited,
                            stack<gate_index_t> &gatesStack) {
@@ -166,8 +180,11 @@ bool topologicalSortHelper(gate_index_t gateIdx,
     return true;
 }
 
+// Sortowanie topologiczne. Funkcja zwraca `true`, jeśli udało się posortować
+// topologicznie, w przeciwnym wypadku zwraca `false`.
 bool topologicalSort() {
-    vector<GateSortingStatus> visited(gates.size());
+    vector<GateSortingStatus> visited(gates.size(),
+                                      GateSortingStatus::UNVISITED);
     stack<gate_index_t> gatesStack;
 
     for (gate_index_t i = 0; i < gates.size(); i++) {
@@ -185,14 +202,16 @@ bool topologicalSort() {
     return true;
 }
 
+// Funkcja sprawdzająca, które z sygnałów są sygnałami wejściowymi układu.
 void findInputs() {
     for (const auto &signal: signalStates) {
         if (!outputs.count(signal.first)) {
-            inputs.insert(signal.first);
+            inputs.push_back(signal.first);
         }
     }
 }
 
+// Funckja wyliczająca stan wyjściowy bramki OR.
 bool evalOr(const vector<signal_t> &signals) {
     for (const signal_t signal: signals) {
         if (signalStates[signal]) {
@@ -202,6 +221,7 @@ bool evalOr(const vector<signal_t> &signals) {
     return false;
 }
 
+// Funckja wyliczająca stan wyjściowy bramki AND.
 bool evalAnd(const vector<signal_t> &signals) {
     for (const signal_t signal: signals) {
         if (!signalStates[signal]) {
@@ -211,6 +231,7 @@ bool evalAnd(const vector<signal_t> &signals) {
     return true;
 }
 
+// Funckja wyliczająca stan końcowy układu.
 void eval() {
     for (const gate_index_t gateIdx: topologicalOrder) {
         const signal_t outputSignal = get<1>(gates[gateIdx]);
@@ -241,10 +262,10 @@ void eval() {
     }
 }
 
-// wypisywanie wyjśćia
-void printSignalsCombination() {
-    for (const auto &el: signalStates) {
-        cout << el.second;
+// Funkcja wypisująca aktualny stan wszystkich sygnałów układu logicznego.
+void printCircuitState() {
+    for (const auto &signal: signalStates) {
+        cout << signal.second;
     }
     cout << endl;
 }
@@ -260,8 +281,12 @@ int main() {
 
     findInputs();
 
+    // Zmienna m oznacza liczbę sygnałów wejściowych tak jak w treści zadania.
     const size_t m = inputs.size();
 
+    // Pętla przetwarza kolejno każdą z 2^m kombinacji stanów sygnałów
+    // wejściowych, wylicza dla niej stan układu i wypisuje go na standardowe
+    // wyjście.
     for (unsigned long long i = 0; i < 1ULL << m; ++i) {
         auto it = inputs.begin();
         for (int j = (int) (m - 1); j >= 0; j--) {
@@ -269,7 +294,7 @@ int main() {
             it++;
         }
         eval();
-        printSignalsCombination();
+        printCircuitState();
     }
 
     return 0;
