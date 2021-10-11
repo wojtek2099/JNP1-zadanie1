@@ -90,15 +90,6 @@ bool isValidGate(const string &s) {
            || regex_match(s, otherGate);
 }
 
-void syntaxError(const size_t lineIdx, const string &line) {
-    cerr << "Error in line " << lineIdx << ": " << line << endl;
-}
-
-void multipleOutputsError(const size_t lineIdx, const signal_t outputSignal) {
-    cerr << "Error in line " << lineIdx << ": signal " << outputSignal
-         << " is assigned to multiple outputs.\n";
-}
-
 void read() {
     size_t lineIdx = 1;   // linie indeksowane od 1 jak w treści
     string line;
@@ -107,7 +98,7 @@ void read() {
 
     while (getline(cin, line)) {
         if (!isValidGate(line)) {   // sprawdzam czy składnia jest poprawna
-            syntaxError(lineIdx, line);
+            cerr << "Error in line " << lineIdx << ": " << line << endl;
             invalidGates = true;
         } else {
             string gateType;
@@ -117,7 +108,8 @@ void read() {
             ss >> gateType >> outputSignal;
 
             if (outputs.count(outputSignal)) {   // sprawdzam czy jest zwarcie
-                multipleOutputsError();
+                cerr << "Error in line " << lineIdx << ": signal " <<
+                     outputSignal << " is assigned to multiple outputs.\n";
                 invalidGates = true;
             } else {
                 outputs.insert(outputSignal);   // wyjście dodane do setu
